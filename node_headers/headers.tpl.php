@@ -8,7 +8,7 @@
   <?php print "<${name}> ${name} </${name}>"; ?>
   <ul>
     <?php foreach ($group as $item): ?>
-      <li> <?php print $item; ?> </li>
+      <li> <?php print $item['id']; ?> </li>
     <?php endforeach; ?>
   </ul>
 <?php endforeach; ?>
