@@ -1,0 +1,97 @@
+<?php
+
+function node_headers_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if (!isset($node->body)) {
+    return;
+  }
+
+  $cid = 'node_headers_' . $node->nid;
+
+  if ($op == 'insert' or $op == 'update') {
+    node_headers_process_body($node);
+    
+    $headers = array(
+      'items' => $node->headers_items,
+      'groups' => $node->headers_groups,
+    );
+    cache_set($cid, $headers);
+  }
+
+  if ($op == 'load') {
+    $cache = cache_get($cid);
+    if ($cache) {
+      $headers = $cache->data;
+    }
+    else {
+      node_headers_process_body($node);
+      $headers = array(
+        'items' => $node->headers_items,
+        'groups' => $node->headers_groups,
+      );
+      cache_set($cid, $headers);
+    }
+    $node->headers_items = $headers['items'];
+    $node->headers_groups = $headers['groups'];
+  }
+}
+
+function node_headers_process_body(&$node) {
+  libxml_use_internal_errors(true);
+  
+  $dom = new DOMDocument();
+  $dom->loadHTML('<?xml encoding="UTF-8">' . $node->body);
+
+  $xpath = new DOMXPath($dom);
+  $titles = $xpath->query('//h1|//h2|//h3|//h4|//h5');
+  $node->headers_items = array();
+  $node->headers_groups = array();
+  foreach ($titles as $title) {
+    $node->headers_items[] = check_plain($title->textContent);
+    $node->headers_groups[$title->nodeName][] = check_plain($title->textContent);
+  }
+  
+  libxml_use_internal_errors(false);
+}
+
+function node_headers_block($op = 'list', $delta = 0, $edit = array()) {
+  $return = 0;
+  switch ($op) {
+    case 'list':
+      $return = array();
+      $return['headers_view'] = array(
+        'info' => 'Node Html Headers',
+        'visibility' => 1,
+        'pages' => 'node/*',
+		'cache' => BLOCK_NO_CACHE,
+
+      );
+      break;
+    case 'view':
+      if ($delta == 'headers_view') {
+        $node = menu_get_object('node', 1);
+        if ($node) {
+          $hook = array('headers__' . $node->type, 'headers');
+          $return = array(
+            'subject' => '',
+            'content' => theme($hook, $node->headers_items, $node->headers_groups),
+          );
+        }
+      }
+      break;
+  }
+  return $return;
+}
+/**/
+function node_headers_theme() {
+  $themes = array();
+  $themes['headers'] = array(
+    'template' => 'headers',
+    'pattern' => 'headers__',
+    'arguments' => array(
+      'items' => array(),
+      'groups' => array(), 
+    ),
+  );
+  return $themes;
+}
+

@@ -1,0 +1,3 @@
+name = node headers
+description = extracts html headers from node content.
+core = 6.x
