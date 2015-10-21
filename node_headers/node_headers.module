@@ -27,6 +27,7 @@ function node_headers_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
     }
     else {
       $headers = node_headers_process_body($node->body);
+      node_submit($node);
     }
     $node->headers_items = $headers['items'];
     $url = 'node/' . $node->nid;
