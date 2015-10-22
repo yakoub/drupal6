@@ -20,15 +20,25 @@ function node_headers_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   }
 
   $cid = 'node_headers_' . $node->nid;
+  static $once = 0;
   if ($op == 'load') {
     $cache = cache_get($cid);
-    if ($cache) {
-      $headers = $cache->data;
+    if (!$cache) {
+      if ($once) {
+        $node->headers_items = $node->header_groups = array();
+        return;
+      }
+      $once = 1;
+      module_load_include('inc', 'node', 'node.pages');
+      $form_state = array();
+      $form_state['values'] = (array) $node;
+      unset($form_state['values']['teaser']);
+      $form_state['submit_handlers'] = array('node_form_submit');
+      drupal_execute($node->type . '_node_form', $form_state, $node);
+      $node->body = $form_state['values']['body'];
+      $cache = cache_get($cid);
     }
-    else {
-      $headers = node_headers_process_body($node->body);
-      node_submit($node);
-    }
+    $headers = $cache->data;
     $node->headers_items = $headers['items'];
     $url = 'node/' . $node->nid;
     $options = array('fragment' => '');
@@ -41,6 +51,15 @@ function node_headers_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 }
 
 function node_headers_process_body(&$body) {
+  $headers = array(
+    'items' => array(),
+    'groups' => array(),
+  );
+  
+  if (empty($body)) {
+    return $headers;
+  }
+
   libxml_use_internal_errors(true);
   
   $dom = new DOMDocument();
@@ -48,10 +67,7 @@ function node_headers_process_body(&$body) {
 
   $xpath = new DOMXPath($dom);
   $titles = $xpath->query('//h1|//h2|//h3|//h4|//h5');
-  $headers = array(
-    'items' => array(),
-    'groups' => array(),
-  );
+
   foreach ($titles as $iter => $title) {
     $header_group = $title->nodeName;
     $id = $title->getAttribute('id');
