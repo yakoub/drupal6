@@ -24,11 +24,11 @@ function node_headers_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   if ($op == 'load') {
     $cache = cache_get($cid);
     if (!$cache) {
-      if ($once) {
+      if ($once == $node->nid) {
         $node->headers_items = $node->header_groups = array();
         return;
       }
-      $once = 1;
+      $once = $node->nid;
       module_load_include('inc', 'node', 'node.pages');
       $form_state = array();
       $form_state['values'] = (array) $node;
