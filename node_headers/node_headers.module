@@ -98,7 +98,7 @@ function node_headers_block($op = 'list', $delta = 0, $edit = array()) {
         'info' => 'Node Html Headers',
         'visibility' => 1,
         'pages' => 'node/*',
-		'cache' => BLOCK_NO_CACHE,
+        'cache' => BLOCK_NO_CACHE,
 
       );
       break;
