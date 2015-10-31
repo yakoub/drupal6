@@ -1,0 +1,150 @@
+<?php
+
+function node_blocks_menu() {
+  $items['node/%node/content_blocks'] = array(
+    'title' => 'Content blocks',
+    'access callback' => 'node_access',
+    'access arguments' => array('update', 1),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('node_blocks_edit', 1),
+    'type' => MENU_LOCAL_TASK,
+  );
+  return $items;
+}
+
+function node_blocks_edit(&$form_state, $node) {
+  $form = array (
+    'fragments' => array('#type' => 'fieldset', '#tree' => TRUE),
+  );
+
+  $form_state['node'] = $node;
+
+  $fragments = node_blocks_fragments($node);
+
+  foreach ($fragments as $part => $fragment) {
+    $form['fragments'][$part] = array(
+      '#type' => 'fieldset',
+      '#tree' => TRUE,
+    );
+
+    $form['fragments'][$part]['block_form'] = array(
+      '#type' => 'markup',
+      '#value' => '<div class = "block-form-handle"> ' . t('Add block') . '</div>',
+    );
+
+    $form['fragments'][$part]['block'] = array(
+      '#type' => 'hidden',
+      '#default_value' => '',
+    );
+
+    $form['fragments'][$part]['text'] = array(
+      '#prefix' => '<div class="fragment-wrapper">',
+      '#value' => check_markup($fragment, $node->format),
+      '#suffix' => '</div>',
+    );
+  }
+
+  $system_blocks = _block_rehash();
+  $js_blocks = array();
+  foreach ($system_blocks as $block) {
+    $js_blocks[ $block['module'] ][ $block['bid'] ] = $block['info'];
+  }
+  drupal_add_js(array('node_blocks' => $js_blocks), 'setting');
+  $path = drupal_get_path('module', 'node_blocks');
+  drupal_add_js($path . '/node_blocks.js');
+  drupal_add_css($path . '/node_blocks.css');
+
+  $form['block_form'] = array(
+    '#title' => t('Block selection'),
+    '#attributes' => array('style' => 'display:none', 'class' => 'block-form'),
+    '#type' => 'fieldset',
+
+    'block_modules' => array(
+      '#type' => 'select',
+      '#title' => t('By module'),
+      '#options' => array_keys($js_blocks),
+    ),
+
+    'block_deltas' => array(
+      '#type' => 'select',
+      '#title' => t('Block title'),
+      '#options' => array(),
+    ),
+    
+    'block_operations' => array(
+      '#type' => 'markup',
+      '#value' => 
+        '<div class="block-operations">' .
+          '<span class="block-save">' . t('Save') . '</span>' .
+          '<span class="block-cancel">' . t('Cancel') . '</span>' .
+        '</div>'
+        ,
+    ),
+  );
+
+  array_unshift($form['block_form']['block_modules']['#options'], 'None');
+
+  $form['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+
+  return $form;
+}
+
+function node_blocks_edit_submit($form, &$form_state) {
+  $node = $form_state['node'];
+  foreach ($form_state['values']['fragments'] as $part => $fragment) {
+    $block = $fragment['block'];
+  }
+}
+
+function node_blocks_fragments($node) {
+  $dom = new DOMDocument();
+  $dom->loadHTML('<?xml encoding="UTF-8">' . $node->body);
+  $html_body = $dom->getElementsByTagName('body');
+  $fragments = array();
+  $fragment = new DOMDocument();
+  $last_node = '';
+
+  try {
+    foreach ($html_body[0]->childNodes as $node) {
+      $node = $fragment->importNode($node, TRUE);
+      $fragment->appendChild($node);
+      $last_node = $node->localName;
+      if ($node->localName == 'p') {
+        $fragments[] = $fragment;
+        $fragment = new DOMDocument();
+      }
+    }
+    if ($last_node != 'p') {
+      $fragments[] = $fragment;
+    }
+  }
+  catch (Exception $e) {
+    return array($e->getMessage(), $e->getLine());
+  }
+  
+  foreach ($fragments as &$fragment) {
+    $fragment = $fragment->saveHTML();
+  }
+
+  return $fragments;
+}
+
+function node_blocks_list_blocks($modules, $deltas) {
+  $sql = 'select * from {blocks} where module in (%s) and delta in (%s)';
+  $result = db_query($sql, implode($modules), implode($deltas));
+  while ($block = db_fetch_object($result)) {
+    $drupal_blocks[$block->module][$block->delta] = $block;
+  }
+  return $drupal_blocks;
+}
+
+function node_blocks_view_block($block) {
+  if (isset($block->content)) {
+    return $block->content;
+  }
+  $block = module_invoke($block->module, 'block', 'view', $block->delta);
+  return $block['content'];
+}

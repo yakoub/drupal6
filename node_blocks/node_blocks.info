@@ -1,0 +1,3 @@
+name = node blocks
+description = inject blocks inside node content.
+core = 6.x

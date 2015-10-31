@@ -1,0 +1,26 @@
+<?php
+
+function node_blocks_install() {
+  drupal_install_schema('node_blocks');
+}
+
+function node_blocks_uninstall() {
+  drupal_uninstall_schema('node_blocks');
+}
+
+function node_blocks_schema() {
+  $schema = array();
+  $schema['node_blocks'] = array(
+    'fields' => array(
+      'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'content' => array('type' => 'text', 'not null' => TRUE, 'size' => 'big'),
+      'part' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'small'),
+      'bid' => array('type' => 'int', 'unsigned' => TRUE),
+    ),
+    'indexes' => array(
+      'nid' => array('nid'),
+    ),
+    'primary key' => array('nid', 'part'),
+  );
+  return $schema;
+}
