@@ -66,7 +66,7 @@ NodeBlocks.updateDeltas = function(module) {
     for (info in deltas) {
       var option = document.createElement('option');
       option.value = info;
-      option.text = Drupal.checkPlain(deltas[info]);
+      option.text = deltas[info];
       this.deltas.add(option);
     }
   }

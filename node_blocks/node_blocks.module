@@ -47,7 +47,7 @@ function node_blocks_edit(&$form_state, $node) {
   $system_blocks = _block_rehash();
   $js_blocks = array();
   foreach ($system_blocks as $block) {
-    $js_blocks[ $block['module'] ][ $block['bid'] ] = $block['info'];
+    $js_blocks[ $block['module'] ][ $block['bid'] ] = check_plain($block['info']);
   }
   drupal_add_js(array('node_blocks' => $js_blocks), 'setting');
   $path = drupal_get_path('module', 'node_blocks');
