@@ -2,12 +2,31 @@
 
 function node_headers_form_alter(&$form, &$form_state, $form_id) {
   if (isset($form['type']) and isset($form['#node'])) {
+    $form['body_field']['body']['#process'] = array('node_blocks_dom');
     $form['#submit'][] = 'node_headers_node_form_submit';
   }
 }
 
+function node_blocks_dom($element) {
+  if (!empty($element['#value'])) {
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="UTF-8">' . $element['#value']);
+    $element['body_dom_document'] = array(
+      '#type' => 'value',
+      '#value' => $dom,
+    );
+
+    $xpath = new DOMXPath($dom);
+    $element['body_dom_xpath'] = array(
+      '#type' => 'value',
+      '#value' => $xpath,
+    );
+  }
+  return $element;
+}
+
 function node_headers_node_form_submit(&$form, &$form_state) {
-  $headers = node_headers_process_body($form_state['values']['body']);
+  $headers = node_headers_process_body($form_state['values']);
   if (!empty($form_state['values']['nid'])) {
     $cid = 'node_headers_' . $form_state['values']['nid'];
     cache_set($cid, $headers);
@@ -50,22 +69,22 @@ function node_headers_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   }
 }
 
-function node_headers_process_body(&$body) {
+function node_headers_process_body(&$node) {
   $headers = array(
     'items' => array(),
     'groups' => array(),
   );
   
-  if (empty($body)) {
+  if (empty($node['body_dom_document'])) {
     return $headers;
   }
 
   libxml_use_internal_errors(true);
   
-  $dom = new DOMDocument();
-  $dom->loadHTML('<?xml encoding="UTF-8">' . $body);
+  $body = $node['body'];
+  $dom = $node['body_dom_document'];
+  $xpath = $node['body_dom_xpath'];
 
-  $xpath = new DOMXPath($dom);
   $titles = $xpath->query('//h1|//h2|//h3|//h4|//h5');
 
   foreach ($titles as $iter => $title) {
