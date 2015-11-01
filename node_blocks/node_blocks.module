@@ -37,10 +37,15 @@ function node_blocks_edit(&$form_state, $node) {
       '#default_value' => '',
     );
 
-    $form['fragments'][$part]['text'] = array(
+    $form['fragments'][$part]['display'] = array(
       '#prefix' => '<div class="fragment-wrapper">',
       '#value' => check_markup($fragment, $node->format),
       '#suffix' => '</div>',
+    );
+
+    $form['fragments'][$part]['text'] = array(
+      '#type' => 'value',
+      '#value' => $fragment,
     );
   }
 
@@ -94,8 +99,24 @@ function node_blocks_edit(&$form_state, $node) {
 
 function node_blocks_edit_submit($form, &$form_state) {
   $node = $form_state['node'];
+  db_query('delete from {node_blocks} where nid=%d', $node->nid);
+  $values_modifiers = array();
+  $values = array();
   foreach ($form_state['values']['fragments'] as $part => $fragment) {
-    $block = $fragment['block'];
+    $values[] = $node->nid;
+    $values[] = $fragment['text'];
+    $values[] = $part;
+    if ($fragment['block']) {
+      $values[] =  $fragment['block'];
+      $values_modifiers[] = '(%d, \'%s\', %d, %d)';
+    }
+    else {
+      $values[] =  'NULL';
+      $values_modifiers[] = '(%d, \'%s\', %d, %s)';
+    }
+  }
+  if ($values) {
+    db_query('insert into {node_blocks} values ' . implode($values_modifiers, ','), $values);
   }
 }
 
