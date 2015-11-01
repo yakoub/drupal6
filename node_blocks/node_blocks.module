@@ -12,10 +12,41 @@ function node_blocks_menu() {
   return $items;
 }
 
+function node_blocks_nodeapi(&$node, $op, $teaser) {
+  
+  if ($op == 'update') {
+    db_query('delete from {node_blocks} where nid=%d', $node->nid);
+  }
+
+  if ($op == 'view' and !$teaser) {
+    $body = '';
+    $node_blocks = node_blocks_load($node->nid, TRUE);
+    foreach ($node_blocks as $part => $block) {
+      $block_content = $block->content;
+      if ($block->bid) {
+        $body .= node_blocks_view_block($block);
+      }
+      $body .= check_markup($block_content, $node->format);
+    }
+    if ($body) {
+      $node->content['body']['#value'] = $body;
+    }
+  }
+}
+
 function node_blocks_edit(&$form_state, $node) {
   $form = array (
     'fragments' => array('#type' => 'fieldset', '#tree' => TRUE),
   );
+
+  $node_blocks = node_blocks_load($node->nid);
+  $system_blocks = _block_rehash();
+  $js_blocks = array();
+  $blocks_info = array();
+  foreach ($system_blocks as $block) {
+    $js_blocks[ $block['module'] ][ $block['bid'] ] = check_plain($block['info']);
+    $blocks_info[ $block['bid'] ] = check_plain($block['info']);
+  }
 
   $form_state['node'] = $node;
 
@@ -29,13 +60,23 @@ function node_blocks_edit(&$form_state, $node) {
 
     $form['fragments'][$part]['block_form'] = array(
       '#type' => 'markup',
-      '#value' => '<div class = "block-form-handle"> ' . t('Add block') . '</div>',
     );
 
     $form['fragments'][$part]['block'] = array(
       '#type' => 'hidden',
       '#default_value' => '',
     );
+
+    if ($node_blocks[$part]->bid) {
+      $bid = $node_blocks[$part]->bid;
+      $form['fragments'][$part]['block_form']['#value']
+        = '<div class = "block-form-handle"> ' . $blocks_info[$bid] . '</div>';
+      $form['fragments'][$part]['block']['#default_value'] = $bid;
+    }
+    else {
+      $form['fragments'][$part]['block_form']['#value']
+        = '<div class = "block-form-handle"> ' . t('Add block') . '</div>';
+    }
 
     $form['fragments'][$part]['display'] = array(
       '#prefix' => '<div class="fragment-wrapper">',
@@ -49,11 +90,6 @@ function node_blocks_edit(&$form_state, $node) {
     );
   }
 
-  $system_blocks = _block_rehash();
-  $js_blocks = array();
-  foreach ($system_blocks as $block) {
-    $js_blocks[ $block['module'] ][ $block['bid'] ] = check_plain($block['info']);
-  }
   drupal_add_js(array('node_blocks' => $js_blocks), 'setting');
   $path = drupal_get_path('module', 'node_blocks');
   drupal_add_js($path . '/node_blocks.js');
@@ -118,6 +154,7 @@ function node_blocks_edit_submit($form, &$form_state) {
   if ($values) {
     db_query('insert into {node_blocks} values ' . implode($values_modifiers, ','), $values);
   }
+  $form_state['redirect'] = 'node/' . $node->nid;
 }
 
 function node_blocks_fragments($node) {
@@ -153,19 +190,28 @@ function node_blocks_fragments($node) {
   return $fragments;
 }
 
-function node_blocks_list_blocks($modules, $deltas) {
-  $sql = 'select * from {blocks} where module in (%s) and delta in (%s)';
-  $result = db_query($sql, implode($modules), implode($deltas));
-  while ($block = db_fetch_object($result)) {
-    $drupal_blocks[$block->module][$block->delta] = $block;
+function node_blocks_load($nid, $full = FALSE) {
+  if ($full) {
+    $query = <<<SQL
+    select * from {node_blocks} n
+    left join {blocks} b on b.bid = n.bid
+    where nid = %d
+SQL;
+    $result = db_query($query, $nid);
   }
-  return $drupal_blocks;
+  else {
+    $result = db_query('select * from {node_blocks} where nid = %d', $nid);
+  }
+  $node_blocks = array();
+  while ($block = db_fetch_object($result)) {
+    $node_blocks[$block->part] = $block;
+  }
+  return $node_blocks;
 }
 
 function node_blocks_view_block($block) {
-  if (isset($block->content)) {
-    return $block->content;
-  }
-  $block = module_invoke($block->module, 'block', 'view', $block->delta);
-  return $block['content'];
+  $block_view = module_invoke($block->module, 'block', 'view', $block->delta);
+  $block->content = $block_view['content'];
+  $block->subject = empty($block_view['subject']) ? '' : $block_view['subject'];
+  return theme('block', $block);
 }
