@@ -212,6 +212,11 @@ SQL;
 function node_blocks_view_block($block) {
   $block_view = module_invoke($block->module, 'block', 'view', $block->delta);
   $block->content = $block_view['content'];
-  $block->subject = empty($block_view['subject']) ? '' : $block_view['subject'];
+  if ($block->title) {
+    $block->subject = $block->title == '<none>' ? '' : check_plain($block->title);
+  }
+  else {
+    $block->subject = empty($block_view['subject']) ? '' : $block_view['subject'];
+  }
   return theme('block', $block);
 }
