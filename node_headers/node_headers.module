@@ -81,7 +81,7 @@ function node_headers_process_body(&$node) {
 
   libxml_use_internal_errors(true);
   
-  $body = $node['body'];
+  $body = &$node['body'];
   $dom = $node['body_dom_document'];
   $xpath = $node['body_dom_xpath'];
 
