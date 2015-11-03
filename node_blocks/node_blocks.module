@@ -159,7 +159,13 @@ function node_blocks_edit_submit($form, &$form_state) {
 
 function node_blocks_fragments($node) {
   $dom = new DOMDocument();
-  $dom->loadHTML('<?xml encoding="UTF-8">' . $node->body);
+
+  try {
+    $dom->loadHTML('<?xml encoding="UTF-8">' . $node->body);
+  }
+  catch (Exception $e) {
+    return array('Error:' . $e->getMessage(), 'Line:' . $e->getLine());
+  }
   $html_body = $dom->getElementsByTagName('body')->item(0);
   $fragments = array();
   $fragment = new DOMDocument();
@@ -180,7 +186,7 @@ function node_blocks_fragments($node) {
     }
   }
   catch (Exception $e) {
-    return array($e->getMessage(), $e->getLine());
+    return array('Error:' . $e->getMessage(), 'Line:' . $e->getLine());
   }
   
   foreach ($fragments as &$fragment) {
