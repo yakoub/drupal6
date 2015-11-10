@@ -39,7 +39,7 @@ NodeBlocks.showForm = function(Xcoord, Ycoord) {
 NodeBlocks.saveForm = function() {
   var bid = $(this.deltas).val();
   var title = bid ? $(this.deltas).find('option:selected').text() : Drupal.t('Add block');
-  this.block.val(bid);
+  this.block.val(bid ? bid : '');
   this.handle.text(title);
   this.closeForm();
 };
