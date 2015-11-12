@@ -9,6 +9,15 @@ function node_blocks_menu() {
     'page arguments' => array('node_blocks_edit', 1),
     'type' => MENU_LOCAL_TASK,
   );
+
+  $items['admin/build/block/node_blocks'] = array(
+    'title' => 'Content blocks',
+    'access arguments' => array('administer blocks'),
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('node_blocks_settings'),
+    'file' => 'node_blocks.admin.inc',
+  );
   return $items;
 }
 
@@ -16,21 +25,30 @@ function node_blocks_nodeapi(&$node, $op, $teaser) {
   
   if ($op == 'update') {
     db_query('delete from {node_blocks} where nid=%d', $node->nid);
+    $cid = 'node-block-fragments-' . $node->nid;
+    cache_clear_all($cid, 'cache_node_blocks');
   }
 
   if ($op == 'view' and !$teaser) {
     $body = '';
-    $node_blocks = node_blocks_load($node->nid, TRUE);
+    $node_blocks = node_blocks_load($node->nid, $full = TRUE);
+    if (!$node_blocks) {
+      $node_blocks = node_blocks_load_default($node);
+      if (!$node_blocks) {
+        return;
+      }
+    }
+
     foreach ($node_blocks as $part => $block) {
       $block_content = $block->content;
       if ($block->bid) {
         $body .= node_blocks_view_block($block);
+        // differnt parts may have same block, and viewing will write over content property
+        $block->content = $block_content;
       }
       $body .= check_markup($block_content, $node->format);
     }
-    if ($body) {
-      $node->content['body']['#value'] = $body;
-    }
+    $node->content['body']['#value'] = $body;
   }
 }
 
@@ -167,6 +185,9 @@ function node_blocks_fragments($node) {
     return array('Error:' . $e->getMessage(), 'Line:' . $e->getLine());
   }
   $html_body = $dom->getElementsByTagName('body')->item(0);
+  if (!$html_body->childNodes) {
+    return array();
+  }
   $fragments = array();
   $fragment = new DOMDocument();
   $last_node = '';
@@ -215,7 +236,58 @@ SQL;
   return $node_blocks;
 }
 
+function node_blocks_load_default($node) {
+
+  $blocks = node_block_default_configuration();
+
+  $cid = 'node-block-fragments-' . $node->nid;
+  if ($cache = cache_get($cid, 'cache_node_blocks')) {
+    $fragments = $cache->data;
+  }
+  else {
+    $fragments = node_blocks_fragments($node);
+    cache_set($cid, $fragments, 'cache_node_blocks');
+  }
+  $node_blocks = array();
+  foreach ($fragments as $part => $fragment) {
+    $node_blocks[$part] = isset($blocks[$part]) ? $blocks[$part] : new stdClass();
+    $node_blocks[$part]->content = $fragment;
+  }
+  return $node_blocks;
+}
+
+function node_block_default_configuration() {
+  $cid = 'node-blocks-default';
+  $default_blocks = array();
+  if ($cache = cache_get($cid)) {
+    $default_blocks = $cache->data;
+  }
+  else {
+    $default_blocks = variable_get('node_blocks_default', '');
+    if (!$default_blocks) {
+      return FALSE;
+    }
+
+    $modifiers = array_fill(0, count($default_blocks), '%d');
+    $modifiers = implode(',', $modifiers);
+    $query = "select * from {blocks} where bid in ( $modifiers )";
+    $result = db_query($query, array_values($default_blocks));
+    $loaded_blocks = array();
+    while ($block = db_fetch_object($result)) {
+      $loaded_blocks[$block->bid] = $block;
+    }
+    foreach ($default_blocks as $part => &$bid) {
+      $bid = $loaded_blocks[$bid];
+    }
+    cache_set($cid, $default_blocks);
+  }
+  return $default_blocks;
+}
+
 function node_blocks_view_block($block) {
+  if (empty($block->module) or empty($block->delta)) {
+    return t('Missing block');
+  }
   $block_view = module_invoke($block->module, 'block', 'view', $block->delta);
   $block->content = $block_view['content'];
   if ($block->title) {
@@ -226,3 +298,4 @@ function node_blocks_view_block($block) {
   }
   return theme('block', $block);
 }
+
