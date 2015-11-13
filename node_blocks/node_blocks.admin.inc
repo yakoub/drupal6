@@ -100,8 +100,6 @@ function node_blocks_settings_submit($form, &$form_state) {
       $blocks[$block['part']] = $block['block'];
     }
   }
-  if ($blocks) {
-    variable_set('node_blocks_default', $blocks);
-  }
+  variable_set('node_blocks_default', $blocks);
   cache_clear_all('node-blocks-default', 'cache');
 }
