@@ -1,6 +1,6 @@
 <?php
 
-function node_blocks_settings() {
+function node_blocks_settings($form, &$form_state) {
   $form = array (
     'blocks' => array('#type' => 'fieldset', '#tree' => TRUE),
     '#prefix' => '<p>' . t('Put -1 in part field to remove a block') . '</p>',
@@ -10,14 +10,14 @@ function node_blocks_settings() {
   $js_blocks = array();
   $blocks_info = array();
   foreach ($system_blocks as $block) {
-    $js_blocks[ $block['module'] ][ $block['bid'] ] = check_plain($block['info']);
-    $blocks_info[ $block['bid'] ] = check_plain($block['info']);
+    $js_blocks[ $block['module'] ][ $block['bid'] ] = $block['info'];
+    $blocks_info[ $block['bid'] ] = $block['info'];
   }
   
   $blocks = variable_get('node_blocks_default', array());
   $blocks[-1] = -1;
   $blocks_info[-1] = t('Add new block');
-  $max_part = count($blocks);
+  $max_part = count($blocks) - 1;
   foreach ($blocks as $part => $bid) {
     if ($part >= $max_part) {
       $max_part = $part + 1;
@@ -31,8 +31,7 @@ function node_blocks_settings() {
       $blocks_info[$bid] = t('Missing block');
     }
     $form['blocks'][$part]['block_form'] = array(
-      '#type' => 'markup',
-      '#value' => '<div class = "block-form-handle"> ' . $blocks_info[$bid] . '</div>',
+      '#markup' => '<div class="block-form-handle"> ' . $blocks_info[$bid] . '</div>',
     );
 
     $form['blocks'][$part]['block'] = array(
@@ -47,6 +46,7 @@ function node_blocks_settings() {
       '#size' => 2,
     );
   }
+
   $form['blocks'][-1]['part']['#default_value'] = $max_part;
   unset($form['blocks'][-1]['block']['#default_value']);
 
@@ -55,9 +55,17 @@ function node_blocks_settings() {
   drupal_add_js($path . '/node_blocks.js');
   drupal_add_css($path . '/node_blocks.css');
 
+  $save = t('Save');
+  $cancel = t('Cancel');
+  $block_oprations = <<<HTML
+    <div class="block-operations">
+      <span class="block-save"> $save </span>
+      <span class="block-cancel"> $cancel </span>
+    </div>
+HTML;
   $form['block_form'] = array(
     '#title' => t('Block selection'),
-    '#attributes' => array('style' => 'display:none', 'class' => 'block-form'),
+    '#attributes' => array('style' => 'display:none', 'class' => array('block-form')),
     '#type' => 'fieldset',
 
     'block_modules' => array(
@@ -73,13 +81,7 @@ function node_blocks_settings() {
     ),
     
     'block_operations' => array(
-      '#type' => 'markup',
-      '#value' => 
-        '<div class="block-operations">' .
-          '<span class="block-save">' . t('Save') . '</span>' .
-          '<span class="block-cancel">' . t('Cancel') . '</span>' .
-        '</div>'
-        ,
+      '#markup' => $block_oprations, 
     ),
   );
 

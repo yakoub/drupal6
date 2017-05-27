@@ -1,31 +1,35 @@
 var NodeBlocks = {};
-Drupal.behaviors.node_blocks = function() {
 
-  NodeBlocks.setUp();
+(function($){
+  Drupal.behaviors.node_blocks = {
+    attach: function(settings, context) {
+      NodeBlocks.setUp();
 
-  $('form .block-form-handle').click(function(event){
-    NodeBlocks.block = $(this).siblings('input[type="hidden"]');
-    NodeBlocks.handle = $(this);
-    NodeBlocks.showForm(event.clientX, event.clientY);
-  });
+      $('form .block-form-handle').click(function(event){
+        NodeBlocks.block = $(this).siblings('input[type="hidden"]');
+        NodeBlocks.handle = $(this);
+        NodeBlocks.showForm(event.clientX, event.clientY);
+      });
 
-  $('form fieldset.block-form select[name="block_modules"]').change(function() {
-    var index = $(this).val();
-    var module = this.item(index).label;
-    NodeBlocks.updateDeltas(module);
-  });
+      $('form fieldset.block-form select[name="block_modules"]').change(function() {
+        var index = $(this).val();
+        var module = this.item(index).label;
+        NodeBlocks.updateDeltas(module);
+      });
 
-  $('form fieldset.block-form .block-save').click(function(event){
-    NodeBlocks.saveForm();
-  });
+      $('form fieldset.block-form .block-save').click(function(event){
+        NodeBlocks.saveForm();
+      });
 
-  $('form fieldset.block-form .block-cancel').click(function(event){
-    NodeBlocks.cancelForm();
-  });
-}
+      $('form fieldset.block-form .block-cancel').click(function(event){
+        NodeBlocks.cancelForm();
+      });
+    }
+  }
+})(jQuery);
 
 NodeBlocks.setUp = function() {
-  this.form = $('form fieldset.block-form');
+  this.form = jQuery('form fieldset.block-form');
   this.deltas = this.form.find('select[name="block_deltas"]').get(0);
   this.blocks = Drupal.settings.node_blocks;
 };
@@ -37,8 +41,8 @@ NodeBlocks.showForm = function(Xcoord, Ycoord) {
 };
 
 NodeBlocks.saveForm = function() {
-  var bid = $(this.deltas).val();
-  var title = bid ? $(this.deltas).find('option:selected').text() : Drupal.t('Add block');
+  var bid = jQuery(this.deltas).val();
+  var title = bid ? jQuery(this.deltas).find('option:selected').text() : Drupal.t('Add block');
   this.block.val(bid ? bid : '');
   this.handle.text(title);
   this.closeForm();

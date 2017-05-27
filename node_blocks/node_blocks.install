@@ -1,27 +1,12 @@
 <?php
 
-function node_blocks_install() {
-  drupal_install_schema('node_blocks');
-}
-
-function node_blocks_uninstall() {
-  drupal_uninstall_schema('node_blocks');
-}
-
-function node_blocks_update_6001() {
-  $schema = drupal_get_schema_unprocessed('system', 'cache');
-  $ret = array();
-  db_create_table($ret, 'cache_node_blocks', $schema);
-  return $ret;
-}
-
 function node_blocks_schema() {
   $schema = array();
   
   $schema['node_blocks'] = array(
     'fields' => array(
       'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
-      'content' => array('type' => 'text', 'not null' => TRUE, 'size' => 'big'),
+      'paragraph' => array('type' => 'text', 'not null' => TRUE, 'size' => 'big'),
       'part' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'small'),
       'bid' => array('type' => 'int', 'unsigned' => TRUE),
     ),
